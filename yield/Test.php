@@ -47,11 +47,23 @@ function newTask(Generator $coroutine){
     );
 }
 
-function killTask($tid){
+/*function killTask($tid){
     return new SystemCall(
         function (Task $task,Scheduler $scheduler) use ($tid){
             $task->setSendValue($scheduler->killTask($tid));
             $scheduler->schedule($task);
+        }
+    );
+}*/
+
+function killTask($tid) {
+    return new SystemCall(
+        function(Task $task, Scheduler $scheduler) use ($tid) {
+            if ($scheduler->killTask($tid)) {
+                $scheduler->schedule($task);
+            } else {
+                throw new InvalidArgumentException('Invalid task ID!');
+            }
         }
     );
 }
@@ -64,7 +76,23 @@ function childTask(){
     }
 }
 
-function task(){
+function waitForRead($socket){
+    return new SystemCall(
+        function (Task $task,Scheduler $scheduler) use ($socket){
+            $scheduler->waitForRead($socket,$task);
+        }
+    );
+}
+
+function waitForWrite($socket){
+    return new SystemCall(
+        function (Task $task,Scheduler $scheduler) use ($socket){
+            $scheduler->waitForWrite($socket,$task);
+        }
+    );
+}
+
+/*function task(){
     $tid = (yield getTaskId());
     $childTid = (yield newTask(childTask()));
 
@@ -76,9 +104,83 @@ function task(){
             yield killTask($childTid);
         }
     }
+}*/
+
+
+
+function server($port) {
+    echo "Starting server at port $port...\n";
+
+    $socket = @stream_socket_server("tcp://localhost:$port", $errNo, $errStr);
+    if (!$socket) throw new Exception($errStr, $errNo);
+
+    stream_set_blocking($socket, 0);
+
+    while (true) {
+        yield waitForRead($socket);
+        $clientSocket = stream_socket_accept($socket, 0);
+        yield newTask(handleClient($clientSocket));
+    }
+}
+
+function handleClient($socket) {
+    yield waitForRead($socket);
+    $data = fread($socket, 8192);
+
+    $msg = "Received following request:\n\n$data";
+    $msgLength = strlen($msg);
+
+    $response = <<<RES
+HTTP/1.1 200 OK\r
+Content-Type: text/plain\r
+Content-Length: $msgLength\r
+Connection: close\r
+\r
+$msg
+RES;
+
+    yield waitForWrite($socket);
+    fwrite($socket, $response);
+
+    fclose($socket);
+}
+
+function task() {
+    try {
+        yield killTask(500);
+    } catch (Exception $e) {
+        echo 'Tried to kill task 500 but failed: ', $e->getMessage(), "\n";
+    }
+}
+
+$scheduler = new Scheduler;
+$scheduler->newTask(task());
+$scheduler->run();
+
+
+/*function echoTimes($msg,$time){
+    for($i=0;$i<$time;$i++){
+        echo "$msg iterator $i \n";
+        yield;
+    }
+}
+
+function task1(){
+    echoTimes('foo', 10); // print foo ten times
+    echo "---\n";
+    echoTimes('bar', 5); // print bar five times
+    yield; // force it to be a coroutine
 }
 
 
+
+$scheduler = new Scheduler;
+$scheduler->newTask(task1());
+$scheduler->run();*/
+
+/*$scheduler = new Scheduler;
+$scheduler->newTask(server(8000));
+$scheduler->run();*/
 
 /*function task($max){
     $tid = (yield getTaskId());
@@ -88,9 +190,9 @@ function task(){
     }
 }*/
 
-$scheduler = new Scheduler();
-$scheduler->newTask(task());
+//$scheduler = new Scheduler();
+//$scheduler->newTask(task());
 /*$scheduler->newTask(task(10));
 $scheduler->newTask(task(5));*/
 
-$scheduler->run();
+//$scheduler->run();
