@@ -39,6 +39,21 @@ class EventDispatcher implements EventDispatcherInterface{
             if(is_array($listener)){
                 if(is_array($listener[0])){
                     foreach ($listener as $key=>$value){
+                        $this->addListener($eventName,[$subscriber,$value[0]],isset($value[1]) ? $value[1] : 0);
+                    }
+                }else{
+                    $this->addListener($eventName,[$subscriber,$listener[0]],isset($listener[1]) ? $listener[1] : 0);
+                }
+            }else{
+                $this->addListener($eventName,[$subscriber,$listener]);
+            }
+        }
+
+        /*$listeners = $subscriber->getSubscribedEvents();
+        foreach ($listeners as $eventName=>$listener){
+            if(is_array($listener)){
+                if(is_array($listener[0])){
+                    foreach ($listener as $key=>$value){
                         if(isset($value[1])){
                             $this->listeners[$eventName][$value[1]][] = [$subscriber,$value[0]];
                         }else{
@@ -51,22 +66,54 @@ class EventDispatcher implements EventDispatcherInterface{
             }else{
                 $this->listeners[$eventName][0][] = [$subscriber,$listener];
             }
-        }
+        }*/
     }
 
     public function removeListener($eventName, $listener){
+        if($eventName==null){
+            $this->listeners = [];
+            return ;
+        }
         $listeners = $this->listeners[$eventName];
+        foreach ($listeners as $priority=>$value){
+            foreach ($value as $k=>$v){
+                if($v==$listener){
+                    unset($value[$k]);
+                }else{
+                    $value[$k] = $v;
+                }
+            }
+
+            $this->listeners[$eventName][$priority] = $value;
+        }
+
+        /*$listeners = $this->listeners[$eventName];
         foreach ($listeners as $priority=>$value){
             foreach ($value as $k=>$v){
                 if($v==$listener){
                     unset($this->listeners[$eventName][$priority][$k]);
                 }
             }
-        }
+        }*/
     }
 
     public function removeSubscriber(EventSubscriberInterface $subscriber){
         $listeners = $subscriber->getSubscribedEvents();
+        foreach ($listeners as $eventName=>$listener){
+            if(is_array($listener)){
+                if(is_array($listener[0])){
+                    foreach ($listener as $v){
+                        $this->removeListener($eventName,[$subscriber,$v[0]],isset($v[1]) ? $v[1] : 0);
+                    }
+                }else{
+                    $this->removeListener($eventName,[$subscriber,$listener[0]],isset($listener[1]) ? $listener[1] : 0);
+                }
+            }else{
+                $this->removeListener($eventName,[$subscriber,$listener]);
+            }
+        }
+
+        /*$listeners = $subscriber->getSubscribedEvents();
         foreach ($listeners as $eventName=>$listener){
             if(is_array($listener)){
                 if(is_array($listener[0])){
@@ -87,7 +134,7 @@ class EventDispatcher implements EventDispatcherInterface{
                     }
                 }
             }
-        }
+        }*/
     }
 
     public function getListeners($eventName = null){
@@ -126,7 +173,7 @@ class EventDispatcher implements EventDispatcherInterface{
             }
             krsort($listeners);
         }else{
-            $listeners = $this->listeners[$eventName];
+            $listeners = isset($this->listeners[$eventName]) ? $this->listeners[$eventName] : [];
             krsort($listeners);
         }
 

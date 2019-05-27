@@ -21,15 +21,17 @@ $dispatcher->addListener('test.action',function (testEvent $event){
 });
 $dispatcher->addListener('test.action',[$listener,'onTestAction']);
 $dispatcher->addSubscriber($subscriber);
-
+//print_r($dispatcher->listeners);exit;
 print_r($dispatcher->getListeners());
 $dispatcher->removeListener('test.action',[$listener,'onTestAction']);
+//print_r($dispatcher->listeners);exit;
 print_r($dispatcher->getListeners());
 $dispatcher->removeSubscriber($subscriber);
+//print_r($dispatcher->listeners);exit;
 print_r($dispatcher->getListeners());
 
-/*$dispatcher->dispatch('',$event);
+//$dispatcher->dispatch(null,$event);
 
-print_r($event->getLists());*/
+//print_r($event->getLists());
 
 
